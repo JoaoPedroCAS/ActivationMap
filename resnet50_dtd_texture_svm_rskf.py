@@ -20,7 +20,7 @@ model = Model(inputs=resnet.input, outputs=activation_layer.output)
 
 final_dense = resnet.get_layer('predictions')
 W = final_dense.get_weights()[0]
-
+image = 0
 while True:
     img = image.load_img(np.random.choice(image_files), target_size=(224,224))
     x = preprocess_input(np.expand_dims(img, 0))
@@ -45,8 +45,9 @@ while True:
     plt.subplot(1,2,2)
     plt.imshow(img)
     plt.title(classname)
-    plt.savefig("/home/PreProjeto/Code/ActivationMap.jpg"
+    plt.savefig(f"/home/PreProjeto/Code/ActivationMap{image}.jpg")
 
     ans = input("Continue? (Y/n)")
     if ans and ans[0].lowe() == 'n':
         break
+    image += 1
