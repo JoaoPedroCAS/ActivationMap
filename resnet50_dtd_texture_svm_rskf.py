@@ -65,19 +65,9 @@ input_image = input_image.squeeze(0).permute(1, 2, 0).detach().cpu().numpy()
 input_image = np.clip(input_image, 0, 1)
 
 # Criar subplots para mostrar a imagem original e a imagem com o mapa de ativação sobreposto
-fig, axes = plt.subplots(1, 2, figsize=(15, 7))  # 1 linha, 2 colunas
-
-# Exibir a imagem original no primeiro subplot
-axes[0].imshow(input_image)
-axes[0].set_title('Imagem Original')
-axes[0].axis('off')  # Desligar os eixos
-
-# Exibir a imagem com o mapa de ativação sobreposto no segundo subplot
-axes[1].imshow(input_image)
-axes[1].imshow(activation_map.detach().cpu().numpy(), cmap='jet', alpha=0.5)  # Sobrepor o mapa com alpha
-axes[1].set_title('Imagem com Mapa de Ativação')
-axes[1].axis('off')  # Desligar os eixos
-
-# Exibir os gráficos
-plt.tight_layout()
+plt.subplot(1,2,1)
+plt.imshow(input_image, alpha=0.8)
+plt.imshow(activation_map.detach().cpu().numpy(), cmap='jet',alpha=0.5)
+plt.subplot(1,2,2)
+plt.imshow(input_image)
 plt.savefig('/home/joao.p.c.a.sa/PreProjeto/Code/Image.jpg')
