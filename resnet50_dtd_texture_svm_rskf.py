@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from torchvision import datasets, transforms
 from torchvision import models
 from torch.utils.data import DataLoader
-import os
+import numpy as np
 
 # Caminho para o diretório onde o DTD está armazenado
 dataset_dir = '/home/joao.p.c.a.sa/PreProjeto/Dataset/DTD/dtd/dtd/images'  # Altere para o caminho correto
@@ -17,7 +17,6 @@ transform = transforms.Compose([
 ])
 
 # Carregar o dataset DTD (assumindo que você tem a estrutura correta de pastas)
-# O DTD geralmente tem subpastas para cada tipo de textura
 dataset = datasets.ImageFolder(root=dataset_dir, transform=transform)
 
 # Criar um DataLoader para carregar o dataset
@@ -56,7 +55,24 @@ activation_map = get_activation_map(model, input_image, target_layer)
 activation_map = activation_map.squeeze(0)  # Remover a dimensão do batch
 activation_map = activation_map.mean(dim=0)  # Tirar a média sobre os canais (se necessário)
 
-# Plotar o mapa de ativação
-plt.imshow(activation_map.detach().cpu().numpy(), cmap='jet')
-plt.colorbar()
+# Normalizar a ativação para que fique na faixa [0, 1] para visualização
+activation_map = F.relu(activation_map)
+activation_map = activation_map - activation_map.min()
+activation_map = activation_map / activation_map.max()
+
+# Convertendo a imagem original para numpy para plotar
+input_image = input_image.squeeze(0).permute(1, 2, 0).detach().cpu().numpy()
+input_image = np.clip(input_image, 0, 1)
+
+# Plotar a imagem e sobrepor o mapa de ativação
+plt.figure(figsize=(10, 10))
+
+# Exibir a imagem original
+plt.imshow(input_image)
+plt.axis('off')  # Desligar os eixos
+
+# Adicionar o mapa de ativação com transparência (overlay)
+plt.imshow(activation_map.detach().cpu().numpy(), cmap='jet', alpha=0.5)
+
+# Exibir o gráfico
 plt.savefig('/home/joao.p.c.a.sa/PreProjeto/Code/Image.jpg')
