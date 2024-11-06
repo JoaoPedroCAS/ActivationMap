@@ -72,7 +72,7 @@ plt.imshow(input_image)
 plt.axis('off')  # Desligar os eixos
 
 # Adicionar o mapa de ativação com transparência (overlay)
-plt.imshow(activation_map.detach().cpu().numpy(), cmap='jet', alpha=0.5)
+plt.imshow(activation_map.detach().cpu().numpy(), cmap='jet', alpha=0.2)
 
 # Exibir o gráfico
 plt.savefig('/home/joao.p.c.a.sa/PreProjeto/Code/Image.jpg')
