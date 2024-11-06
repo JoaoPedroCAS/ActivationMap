@@ -1,53 +1,62 @@
-from keras.models import Model
-from keras.applications.resnet50 import ResNet50, preprocess_input, decode_predictions
-from keras.preprocessing import image
-
-import numpy as np
-import scipy as sp
+import torch
+import torch.nn.functional as F
 import matplotlib.pyplot as plt
+from torchvision import datasets, transforms
+from torchvision import models
+from torch.utils.data import DataLoader
+import os
 
-from glob import glob
+# Caminho para o diretório onde o DTD está armazenado
+dataset_dir = '/home/joao.p.c.a.sa/PreProjeto/Dataset/DTD/dtd/dtd/images'  # Altere para o caminho correto
 
-image_files = glob('/home/joao.p.c.a.sa/PreProjeto/Dataset/DTD/dtd/dtd/images/*/*.jp*g')
+# Definir as transformações para as imagens
+transform = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+])
 
-resnet = ResNet50(input_shape=(224, 224, 3), weights='imagenet', include_top=True)
+# Carregar o dataset DTD (assumindo que você tem a estrutura correta de pastas)
+# O DTD geralmente tem subpastas para cada tipo de textura
+dataset = datasets.ImageFolder(root=dataset_dir, transform=transform)
 
-resnet.summary()
+# Criar um DataLoader para carregar o dataset
+data_loader = DataLoader(dataset, batch_size=1, shuffle=True)
 
-activation_layer = resnet.get_layer('conv5_block3_out')
+# Carregar o modelo pré-treinado (ResNet18)
+model = models.resnet18(pretrained=True)
+model.eval()  # Coloca o modelo em modo de avaliação
 
-model = Model(inputs=resnet.input, outputs=activation_layer.output)
+# Função para capturar as ativações de uma camada
+def get_activation_map(model, input_image, target_layer):
+    activation = {}
 
-final_dense = resnet.get_layer('predictions')
-W = final_dense.get_weights()[0]
-cont = 0
-while True:
-    img = image.load_img(np.random.choice(image_files), target_size=(224,224))
-    x = preprocess_input(np.expand_dims(img, 0))
-    fmaps = model.predict(x)[0]
+    def hook_fn(module, input, output):
+        activation['value'] = output
 
-    probs = resnet.predict(x)
-    classnames = decode_predictions(probs)[0]
-    print(classnames)
-    classnames = classnames[0][1]
-    print(classnames)
-    pred = np.argmax(probs[0])
+    # Registrar um hook na camada desejada
+    target_layer.register_forward_hook(hook_fn)
 
-    w = W[:, pred]
+    # Passar a imagem pela rede
+    output = model(input_image)
 
-    cam = fmaps.dot(w)
+    # Retornar a ativação
+    return activation['value']
 
-    cam = sp.ndimage.zoom(cam, (32, 32), order=1)
+# Pegar uma imagem do DataLoader
+input_image, _ = next(iter(data_loader))  # Pega uma imagem do DataLoader
 
-    plt.subplot(1,2,1)
-    plt.imshow(img, alpha=0.8)
-    plt.imshow(cam, cmap='jet', alpha=0.5)
-    plt.subplot(1,2,2)
-    plt.imshow(img)
-    plt.title(classnames)
-    plt.savefig(f"/home/joao.p.c.a.sa/PreProjeto/Code/ActivationMap{cont}.jpg")
+# Pegar a ativação de uma camada convolucional, como a primeira camada convolucional
+target_layer = model.conv1
 
-    ans = input("Continue? (Y/n)")
-    if ans and ans[0].lower() == 'n':
-        break
-    cont += 1
+# Obter a ativação
+activation_map = get_activation_map(model, input_image, target_layer)
+
+# Converter a ativação para um formato visualizável
+activation_map = activation_map.squeeze(0)  # Remover a dimensão do batch
+activation_map = activation_map.mean(dim=0)  # Tirar a média sobre os canais (se necessário)
+
+# Plotar o mapa de ativação
+plt.imshow(activation_map.detach().cpu().numpy(), cmap='jet')
+plt.colorbar()
+plt.savefig('/home/joao.p.c.a.sa/PreProjeto/Code/Image.jpg')
