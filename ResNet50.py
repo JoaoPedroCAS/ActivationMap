@@ -11,7 +11,7 @@ from torchvision.models import resnet50, ResNet50_Weights
 import matplotlib.pyplot as plt
 
 # Define o caminho para o seu dataset e para salvar as imagens dos mapas de ativação
-dataset_path = '/home/joao.p.c.a.sa/PreProjeto/Dataset/DTD/dtd/dtd/images'
+dataset_path = '/home/joao.p.c.a.sa/PreProjeto/Datasets'
 output_dir = '/home/joao.p.c.a.sa/PreProjeto/Code/activation_maps'  # Diretório para salvar as imagens dos mapas de ativação
 os.makedirs(output_dir, exist_ok=True)
 print("Diretorios Criados")
@@ -86,8 +86,8 @@ for i in range(len(images_tensor)):
     axes[0].set_title('Imagem Original')
     
     # Subplot 2: Imagem com mapa de ativação sobreposto
-    axes[1].imshow(original_images[i])
-    axes[1].imshow(activation_map, cmap='jet', alpha=0.5)  # Sobrepõe o mapa de ativação
+    axes[1].imshow(original_images[i], alpha=0.8)
+    axes[1].imshow(activation_map, cmap='jet', alpha=0.3)  # Sobrepõe o mapa de ativação
     axes[1].axis('off')
     axes[1].set_title('Imagem com Mapa de Ativação')
 
