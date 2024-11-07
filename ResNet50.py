@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 # Define o caminho para o seu dataset e para salvar as imagens dos mapas de ativação
 dataset_path = '/home/joao.p.c.a.sa/PreProjeto/Datasets'
-output_dir = '/home/joao.p.c.a.sa/PreProjeto/Code/activation_maps_layer_2'
+output_dir = '/home/joao.p.c.a.sa/PreProjeto/Code/activation_maps_layer_3'
 os.makedirs(output_dir, exist_ok=True)
 print("Diretorios Criados")
 
@@ -21,7 +21,7 @@ class ResNet50FeatureExtractor(nn.Module):
     def __init__(self):
         super(ResNet50FeatureExtractor, self).__init__()
         self.model = resnet50(weights=ResNet50_Weights.IMAGENET1K_V1)
-        self.model = nn.Sequential(*list(self.model.children())[:-7])
+        self.model = nn.Sequential(*list(self.model.children())[:-6])
 
     def forward(self, x):
         return self.model(x)
@@ -71,7 +71,7 @@ model = ResNet50FeatureExtractor().to(device)
 model.eval()
 print("Modelo Avaliado")
 # Registra o hook na camada X
-layer_to_hook = model.model[2]
+layer_to_hook = model.model[3]
 hook = layer_to_hook.register_forward_hook(hook_fn)
 print("Hook feito")
 
