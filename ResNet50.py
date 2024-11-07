@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 # Define o caminho para o seu dataset e para salvar as imagens dos mapas de ativação
 dataset_path = '/home/joao.p.c.a.sa/PreProjeto/Datasets'
-output_dir = '/home/joao.p.c.a.sa/PreProjeto/Code/activation_maps_layer_0'  # Diretório para salvar as imagens dos mapas de ativação
+output_dir = '/home/joao.p.c.a.sa/PreProjeto/Code/activation_maps_layer_1'  # Diretório para salvar as imagens dos mapas de ativação
 os.makedirs(output_dir, exist_ok=True)
 print("Diretorios Criados")
 
@@ -21,7 +21,7 @@ class ResNet50FeatureExtractor(nn.Module):
     def __init__(self):
         super(ResNet50FeatureExtractor, self).__init__()
         self.model = resnet50(weights=ResNet50_Weights.IMAGENET1K_V1)
-        self.model = nn.Sequential(*list(self.model.children())[:-9])  # Remove a camada de classificação
+        self.model = nn.Sequential(*list(self.model.children())[:-8])  # Remove a camada de classificação
 
     def forward(self, x):
         return self.model(x)
@@ -71,7 +71,7 @@ model = ResNet50FeatureExtractor().to(device)
 model.eval()
 print("Modelo Avaliado")
 # Registra o hook na camada X
-layer_to_hook = model.model[0]
+layer_to_hook = model.model[1]
 hook = layer_to_hook.register_forward_hook(hook_fn)
 print("Hook feito")
 
@@ -80,19 +80,16 @@ features = []
 
 # Extração de características e geração de mapas de ativação
 target_filenames = [f'c{str(i+1).zfill(2)}_001_a_w01.png' for i in range(20)]
-print(target_filenames)
-
 for i in range(len(images_tensor)):
     img = images_tensor[i].unsqueeze(0).to(device)
 
     with torch.no_grad():
-        activation = model(img)  # Extrai as ativações da camada 7
+        activation = model(img)  # Extrai as ativações da camada
         feature = activation.cpu().numpy().flatten()
         features.append(feature)
 
     # Gera o mapa de ativação
     if filenames[i] in target_filenames:
-        print(filenames[i])
         activation_map = activation.squeeze(0).mean(dim=0).cpu().numpy()  # Calcula a média dos mapas de ativação
 
         # Normaliza o mapa de ativação para [0, 1] para visualização
@@ -130,17 +127,17 @@ recall_scores = []
 precision_scores = []
 
 for fold, (train_index, test_index) in enumerate(cv.split(features, labels), 1):
-    print("Iniciainado o LDA com RSKF")
+    print("Iniciando o LDA com RSKF")
     X_train, X_test = features[train_index], features[test_index]
     y_train, y_test = labels[train_index], labels[test_index]
-
+    print("Treino e teste separado")
     # Treinar o modelo LDA
     lda.fit(X_train, y_train)
-
+    print("Fit do modelo realizado")
     # Realizar previsões e avaliar o modelo
     y_pred = lda.predict(X_test)
     report = classification_report(y_test, y_pred, output_dict=True, zero_division=0)
-
+    
     accuracy = accuracy_score(y_test, y_pred)
     f1 = np.mean([report[str(i)]['f1-score'] for i in range(len(np.unique(labels))) if str(i) in report])
     recall = np.mean([report[str(i)]['recall'] for i in range(len(np.unique(labels))) if str(i) in report])
