@@ -12,16 +12,14 @@ import matplotlib.pyplot as plt
 
 # Define o caminho para o seu dataset e para salvar as imagens dos mapas de ativação
 dataset_path = '/home/joao.p.c.a.sa/PreProjeto/Datasets'
-output_dir = '/home/joao.p.c.a.sa/PreProjeto/Code/activation_maps_layer_0_GAP'
-os.makedirs(output_dir, exist_ok=True)
-print("Diretorios Criados")
 
-# Carrega o modelo ResNet50 e remove a camada de classificação
+
+#Carrega o modelo ResNet50 e remove a camada de classificação
 class ResNet50FeatureExtractor(nn.Module):
     def __init__(self):
         super(ResNet50FeatureExtractor, self).__init__()
         self.model = resnet50(weights=ResNet50_Weights.IMAGENET1K_V1)
-        self.model = nn.Sequential(*list(self.model.children())[:-9])
+        self.model = nn.Sequential(*list(self.model.children())[:-2])
         self.model.add_module("GAP", nn.AdaptiveAvgPool2d((1, 1)))
 
     def forward(self, x):
@@ -61,26 +59,16 @@ images, labels, original_images, filenames = load_images_from_folder(dataset_pat
 images_tensor = torch.stack(images)
 print("Imagens Carregadas")
 
-# Adicionar hook na camada X
-def hook_fn(module, input, output):
-    # Aqui podemos salvar ou processar as ativações, que são as saídas da camada
-    return output
-
-# Configuração do dispositivo
+#Configuração do dispositivo
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = ResNet50FeatureExtractor().to(device)
 model.eval()
 print("Modelo Avaliado")
-# Registra o hook na camada X
-layer_to_hook = model.model[1]
-hook = layer_to_hook.register_forward_hook(hook_fn)
-print("Hook feito")
 
 # Inicializar lista para armazenar as características
 features = []
 
 # Extração de características e geração de mapas de ativação
-target_filenames = [f'c{str(i+1).zfill(2)}_001_a_w01.png' for i in range(20)]
 for i in range(len(images_tensor)):
     img = images_tensor[i].unsqueeze(0).to(device)
 
@@ -88,35 +76,6 @@ for i in range(len(images_tensor)):
         activation = model(img)  # Extrai as ativações da camada
         feature = activation.cpu().numpy().flatten()
         features.append(feature)
-
-    # Gera o mapa de ativação
-    if filenames[i] in target_filenames:
-        activation_map = activation.squeeze(0).mean(dim=0).cpu().numpy()  # Calcula a média dos mapas de ativação
-
-        # Normaliza o mapa de ativação para [0, 1] para visualização
-        denominator = activation_map.max() - activation_map.min()
-        if denominator == 0:
-            activation_map = np.zeros_like(activation_map)  # Ou use um valor constante, como 0.5
-        else:
-            activation_map = (activation_map - activation_map.min()) / denominator
-
-        # Exibir a imagem original e o mapa de ativação sobreposto
-        fig, axes = plt.subplots(1, 2, figsize=(10, 5))
-
-        # Subplot 1: Imagem original
-        axes[0].imshow(original_images[i])
-        axes[0].axis('off')
-        axes[0].set_title('Imagem Original')
-
-        # Subplot 2: Imagem com mapa de ativação sobreposto
-        axes[1].imshow(original_images[i], alpha=0.8)
-        axes[1].imshow(activation_map, cmap='jet', alpha=0.3)  # Sobrepõe o mapa de ativação
-        axes[1].axis('off')
-        axes[1].set_title('Imagem com Mapa de Ativação')
-                # Salvar a imagem do mapa de ativação
-        activation_map_path = os.path.join(output_dir, f'{filenames[i]}_activation_map.png')
-        plt.savefig(activation_map_path)
-        plt.close(fig)
 
 print("Features extraídas")
 # Converter lista de características e rótulos em arrays
