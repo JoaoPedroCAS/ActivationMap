@@ -94,7 +94,11 @@ for i in range(len(images_tensor)):
         activation_map = activation.squeeze(0).mean(dim=0).cpu().numpy()  # Calcula a média dos mapas de ativação
 
         # Normaliza o mapa de ativação para [0, 1] para visualização
-        activation_map = (activation_map - activation_map.min()) / (activation_map.max() - activation_map.min())
+        denominator = activation_map.max() - activation_map.min()
+        if denominator == 0:
+            activation_map = np.zeros_like(activation_map)  # Ou use um valor constante, como 0.5
+        else:
+            activation_map = (activation_map - activation_map.min()) / denominator
 
         # Exibir a imagem original e o mapa de ativação sobreposto
         fig, axes = plt.subplots(1, 2, figsize=(10, 5))
