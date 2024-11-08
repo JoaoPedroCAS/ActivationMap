@@ -90,23 +90,17 @@ for i in range(len(images_tensor)):
     if filenames[i] in target_filenames:
         activation_map = activation.squeeze(0).mean(dim=0).cpu().numpy()  # Calcula a média dos mapas de ativação
 
-        # Normaliza o mapa de ativação para [0, 1] para visualização
-        denominator = activation_map.max() - activation_map.min()
-        if denominator == 0:
-            activation_map = np.zeros_like(activation_map)  # Ou use um valor constante, como 0.5
-        else:
-            activation_map = (activation_map - activation_map.min()) / denominator
+        activation_map = (activation_map - activation_map.min()) / ((activation_map.max()) - activation_map.min())
 
         # Exibir a imagem original e o mapa de ativação sobreposto
         # Plotar a imagem e o CAM
-        img = img.cpu().squeeze(0).permute(1, 2, 0)
         activation_map_path = os.path.join(output_dir, f'{filenames[i]}_activation_map.png')
         plt.subplot(1, 2, 1)
-        plt.imshow(img, alpha=0.8)
+        plt.imshow(original_images[i], alpha=0.8)
         plt.imshow(activation_map, cmap="jet", alpha=0.5)
         plt.title(f"CAM para {filenames[i]}")
         plt.subplot(1, 2, 2)
-        plt.imshow(img)
+        plt.imshow(original_images[i])
         plt.savefig(activation_map_path)
         plt.close()
 
