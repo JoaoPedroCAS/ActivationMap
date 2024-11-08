@@ -91,10 +91,12 @@ for i in range(len(images_tensor)):
         activation_map = activation.squeeze(0).mean(dim=0).cpu().numpy()  # Calcula a média dos mapas de ativação
 
         # Normaliza o mapa de ativação para [0, 1] para visualização
+        activation_map = np.clip(activation_map, 0, np.percentile(activation_map, 95))  # Ignora 5% das ativações mais baixas
         activation_map = (activation_map - activation_map.min()) / (activation_map.max() - activation_map.min())
 
+        # Redimensiona o mapa de ativação para a resolução da imagem original
         activation_map_resized = Image.fromarray(activation_map)
-        activation_map_resized = activation_map_resized.resize((224, 224), Image.BICUBIC)
+        activation_map_resized = activation_map_resized.resize((224, 224), Image.BILINEAR)
         activation_map_resized = np.array(activation_map_resized)
 
         # Exibir a imagem original e o mapa de ativação sobreposto
@@ -106,14 +108,15 @@ for i in range(len(images_tensor)):
         axes[0].set_title('Imagem Original')
 
         # Subplot 2: Imagem com mapa de ativação sobreposto
-        axes[1].imshow(original_images[i], alpha=0.8)
-        axes[1].imshow(activation_map_resized, cmap='jet', alpha=0.3)  # Sobrepõe o mapa de ativação
+        alpha = 0.5  # Ajuste o valor de alpha (0.0 para completamente transparente, 1.0 para completamente opaco)
+        axes[1].imshow(original_images[i], alpha=1 - alpha)  # Imagem com opacidade ajustada
+        axes[1].imshow(activation_map_resized, cmap='jet', alpha=alpha)  # Mapa de ativação sobreposto com alpha ajustado
         axes[1].axis('off')
         axes[1].set_title('Imagem com Mapa de Ativação')
-                # Salvar a imagem do mapa de ativação
+
+        # Salvar a imagem do mapa de ativação
         activation_map_path = os.path.join(output_dir, f'{filenames[i]}_activation_map.png')
         plt.savefig(activation_map_path)
-        print(f"Tamanho da ativação: {activation_map.shape}")
         plt.close(fig)
 
 print("Mapas gerados")
