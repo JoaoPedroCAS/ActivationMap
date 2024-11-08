@@ -19,7 +19,6 @@ class ResNet50FeatureExtractor(nn.Module):
         super(ResNet50FeatureExtractor, self).__init__()
         self.model = resnet50(weights=ResNet50_Weights.IMAGENET1K_V1)
         self.model = nn.Sequential(*list(self.model.children())[:-9])
-        self.model.add_module("GAP", nn.AdaptiveAvgPool2d((1, 1)))
 
     def forward(self, x):
         return self.model(x)
@@ -70,6 +69,7 @@ model.eval()
 print("Modelo Avaliado")
 # Registra o hook na camada X
 layer_to_hook = model.model[0]
+print(layer_to_hook)
 hook = layer_to_hook.register_forward_hook(hook_fn)
 print("Hook feito")
 
@@ -90,18 +90,30 @@ for i in range(len(images_tensor)):
     if filenames[i] in target_filenames:
         activation_map = activation.squeeze(0).mean(dim=0).cpu().numpy()  # Calcula a média dos mapas de ativação
 
-        activation_map = (activation_map - activation_map.min()) / ((activation_map.max()) - activation_map.min())
+        # Normaliza o mapa de ativação para [0, 1] para visualização
+        activation_map = (activation_map - activation_map.min()) / (activation_map.max() - activation_map.min())
+
+        activation_map_resized = Image.fromarray(activation_map)
+        activation_map_resized = activation_map_resized.resize((224, 224), Image.BICUBIC)
+        activation_map_resized = np.array(activation_map_resized)
 
         # Exibir a imagem original e o mapa de ativação sobreposto
-        # Plotar a imagem e o CAM
+        fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+
+        # Subplot 1: Imagem original
+        axes[0].imshow(original_images[i])
+        axes[0].axis('off')
+        axes[0].set_title('Imagem Original')
+
+        # Subplot 2: Imagem com mapa de ativação sobreposto
+        axes[1].imshow(original_images[i], alpha=0.8)
+        axes[1].imshow(activation_map_resized, cmap='jet', alpha=0.3)  # Sobrepõe o mapa de ativação
+        axes[1].axis('off')
+        axes[1].set_title('Imagem com Mapa de Ativação')
+                # Salvar a imagem do mapa de ativação
         activation_map_path = os.path.join(output_dir, f'{filenames[i]}_activation_map.png')
-        plt.subplot(1, 2, 1)
-        plt.imshow(original_images[i], alpha=0.8)
-        plt.imshow(activation_map, cmap="jet", alpha=0.5)
-        plt.title(f"CAM para {filenames[i]}")
-        plt.subplot(1, 2, 2)
-        plt.imshow(original_images[i])
         plt.savefig(activation_map_path)
-        plt.close()
+        print(f"Tamanho da ativação: {activation_map.shape}")
+        plt.close(fig)
 
 print("Mapas gerados")
