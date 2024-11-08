@@ -92,7 +92,8 @@ for i in range(len(images_tensor)):
 
         # Normaliza o mapa de ativação para [0, 1] para visualização
         activation_map = np.clip(activation_map, 0, np.percentile(activation_map, 95))  # Ignora 5% das ativações mais baixas
-        activation_map = (activation_map - activation_map.min()) / (activation_map.max() - activation_map.min())
+        epsilon = 1e-8
+        activation_map = (activation_map - activation_map.min()) / (activation_map.max() - activation_map.min() + epsilon)
 
         # Redimensiona o mapa de ativação para a resolução da imagem original
         activation_map_resized = Image.fromarray(activation_map)
