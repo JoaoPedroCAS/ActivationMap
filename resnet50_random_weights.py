@@ -7,7 +7,7 @@ from sklearn.model_selection import RepeatedStratifiedKFold
 import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
-from torchvision.models import resnet50, ResNet50_Weights
+from torchvision.models import resnet50
 import matplotlib.pyplot as plt
 
 # Define o caminho para o seu dataset e para salvar as imagens dos mapas de ativação
@@ -78,62 +78,83 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # Criar o modelo e movê-lo para o dispositivo (GPU ou CPU)
 model = ResNet50FeatureExtractor().to(device)
 
-# Carregar os pesos personalizados para o modelo
-weights = 'random_weights/random_weights_1.txt'
-model.load_random_weights(weights)
+# Iterar sobre os arquivos de pesos (200 arquivos txt)
+weights_dir = '/home/joao.p.c.a.sa/PreProjeto/Code/random_weights/'
+weights_files = [f for f in os.listdir(weights_dir) if f.endswith('.txt')]
 
-model.eval()
-print("Modelo Avaliado")
+# Abrir arquivo para salvar as métricas
+with open('metricas_resultados.txt', 'w') as metrics_file:
+    metrics_file.write("Peso, Acurácia, F1-Score, Recall, Precision\n")
+    
+    # Loop sobre os arquivos de pesos
+    for weight_file in weights_files:
+        weights_path = os.path.join(weights_dir, weight_file)
+        
+        # Carregar pesos para o modelo
+        model.load_random_weights(weights_path)
 
-# Inicializar lista para armazenar as características
-features = []
+        model.eval()
+        print(f"Modelo avaliado com pesos: {weight_file}")
 
-# Extração de características e geração de mapas de ativação
-for i in range(len(images_tensor)):
-    img = images_tensor[i].unsqueeze(0).to(device).float()  # Movendo a imagem para a GPU e garantindo o tipo float32
+        # Inicializar lista para armazenar as características
+        features = []
 
-    with torch.no_grad():
-        activation = model(img)  # Extrai as ativações da camada
-        feature = activation.cpu().numpy().flatten()  # Move os dados de volta para a CPU para processamento
-        features.append(feature)
+        # Extração de características e geração de mapas de ativação
+        for i in range(len(images_tensor)):
+            img = images_tensor[i].unsqueeze(0).to(device).float()  # Movendo a imagem para a GPU e garantindo o tipo float32
 
-print("Features extraídas")
+            with torch.no_grad():
+                activation = model(img)  # Extrai as ativações da camada
+                feature = activation.cpu().numpy().flatten()  # Move os dados de volta para a CPU para processamento
+                features.append(feature)
 
-# Converter lista de características e rótulos em arrays
-features = np.array(features)
-labels = np.array(labels)
+        print("Features extraídas")
 
-# Executar LDA e validação cruzada
-lda = LinearDiscriminantAnalysis()
-cv = RepeatedStratifiedKFold(n_splits=5, n_repeats=2, random_state=42)
-accuracy_scores = []
-f1_scores = []
-recall_scores = []
-precision_scores = []
+        # Converter lista de características e rótulos em arrays
+        features = np.array(features)
+        labels = np.array(labels)
 
-for fold, (train_index, test_index) in enumerate(cv.split(features, labels), 1):
-    X_train, X_test = features[train_index], features[test_index]
-    y_train, y_test = labels[train_index], labels[test_index]
-    #Treinar o modelo LDA
-    lda.fit(X_train, y_train)
+        # Executar LDA e validação cruzada
+        lda = LinearDiscriminantAnalysis()
+        cv = RepeatedStratifiedKFold(n_splits=5, n_repeats=2, random_state=42)
+        accuracy_scores = []
+        f1_scores = []
+        recall_scores = []
+        precision_scores = []
 
-    # Realizar previsões e avaliar o modelo
-    y_pred = lda.predict(X_test)
-    report = classification_report(y_test, y_pred, output_dict=True, zero_division=0)
+        for fold, (train_index, test_index) in enumerate(cv.split(features, labels), 1):
+            X_train, X_test = features[train_index], features[test_index]
+            y_train, y_test = labels[train_index], labels[test_index]
+            
+            # Treinar o modelo LDA
+            lda.fit(X_train, y_train)
 
-    accuracy = accuracy_score(y_test, y_pred)
-    f1 = np.mean([report[str(i)]['f1-score'] for i in range(len(np.unique(labels))) if str(i) in report])
-    recall = np.mean([report[str(i)]['recall'] for i in range(len(np.unique(labels))) if str(i) in report])
-    precision = np.mean([report[str(i)]['precision'] for i in range(len(np.unique(labels))) if str(i) in report])
+            # Realizar previsões e avaliar o modelo
+            y_pred = lda.predict(X_test)
+            report = classification_report(y_test, y_pred, output_dict=True, zero_division=0)
 
-    accuracy_scores.append(accuracy)
-    f1_scores.append(f1)
-    recall_scores.append(recall)
-    precision_scores.append(precision)
+            accuracy = accuracy_score(y_test, y_pred)
+            f1 = np.mean([report[str(i)]['f1-score'] for i in range(len(np.unique(labels))) if str(i) in report])
+            recall = np.mean([report[str(i)]['recall'] for i in range(len(np.unique(labels))) if str(i) in report])
+            precision = np.mean([report[str(i)]['precision'] for i in range(len(np.unique(labels))) if str(i) in report])
 
-# Imprimir as métricas finais da validação cruzada
-print("Resultados da Validação Cruzada:")
-print(f"Accuracy: {np.mean(accuracy_scores):.4f} ± {np.std(accuracy_scores):.4f}")
-print(f"F1-Score: {np.mean(f1_scores):.4f} ± {np.std(f1_scores):.4f}")
-print(f"Recall: {np.mean(recall_scores):.4f} ± {np.std(recall_scores):.4f}")
-print(f"Precision: {np.mean(precision_scores):.4f} ± {np.std(precision_scores):.4f}")
+            accuracy_scores.append(accuracy)
+            f1_scores.append(f1)
+            recall_scores.append(recall)
+            precision_scores.append(precision)
+
+        # Calcular as métricas médias da validação cruzada
+        avg_accuracy = np.mean(accuracy_scores)
+        avg_f1 = np.mean(f1_scores)
+        avg_recall = np.mean(recall_scores)
+        avg_precision = np.mean(precision_scores)
+
+        # Salvar as métricas no arquivo
+        metrics_file.write(f"{weight_file}, {avg_accuracy:.4f}, {avg_f1:.4f}, {avg_recall:.4f}, {avg_precision:.4f}\n")
+
+        # Imprimir as métricas para conferência
+        print(f"Resultados com pesos {weight_file}:")
+        print(f"Accuracy: {avg_accuracy:.4f}")
+        print(f"F1-Score: {avg_f1:.4f}")
+        print(f"Recall: {avg_recall:.4f}")
+        print(f"Precision: {avg_precision:.4f}\n")
