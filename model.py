@@ -1,19 +1,37 @@
 import torchvision.models as models
 import torch.nn as nn
+import torch
+import numpy as np
 
-model = models.resnet50(weights = models.ResNet50_Weights.IMAGENET1K_V1)
-model = nn.Sequential(*list(model.children())[:-2])
-print(model[7][2].conv1)
+# Carregar modelo com a estrutura desejada
+model = models.resnet50(weights=None)  # Não carrega pesos pretreinados
+model = nn.Sequential(*list(model.children())[:-9])
+model.add_module("GAP", nn.AdaptiveAvgPool2d((1, 1)))
 
-# Imprimir todas as camadas e seus detalhes
-#for name, module in model.named_children():
-    #print(f"Camada: {name}, Tipo: {module.__class__.__name__}")
+# Função para carregar pesos de um arquivo txt
+def carregar_pesos_personalizados(model, arquivo_pesos):
+    with open(arquivo_pesos, 'r') as f:
+        # Lê todos os valores como uma única linha
+        valores = f.read().strip().split(',')
+        valores = np.array([float(valor) for valor in valores])
     
-    # Inspecionando os parâmetros da camada
-    #for param_name, param in module.named_parameters():
-        #print(f"  Parâmetro: {param_name} - Forma: {param.shape}")
-        
-    # Se a camada tem um método forward, você pode verificar sua configuração
-    #if hasattr(module, 'forward'):
-        #print(f"  Método Forward: {module.forward}")
-    #print("-" * 50)  # Separador entre as camadas
+    indice = 0
+    for name, module in model.named_children():
+        for param_name, param in module.named_parameters():
+            # Verifica o tamanho esperado para a camada atual
+            tamanho_param = param.numel()
+            # Extrai o número exato de valores e converte para tensor
+            pesos_tensor = torch.tensor(valores[indice:indice + tamanho_param]).view(param.shape)
+            # Atualiza os pesos da camada
+            param.data = pesos_tensor
+            indice += tamanho_param
+
+# Caminho do arquivo de pesos personalizados
+arquivo_pesos = 'random_weights/random_weights_1.txt'
+carregar_pesos_personalizados(model, arquivo_pesos)
+
+# Verificar se os pesos foram carregados corretamente
+for name, module in model.named_children():
+    print(f"Camada: {name}, Tipo: {module.__class__.__name__}")
+    for param_name, param in module.named_parameters():
+        print(f"  {param_name}: {param.data[:5]}")  # Exibe os primeiros 5 elementos do tensor
